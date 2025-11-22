@@ -1,19 +1,25 @@
+
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
   
-  // Hide navbar on lesson, guide, and create-circle pages for immersive experience
-  if (location.pathname.startsWith('/lesson/') || location.pathname.startsWith('/guide/') || location.pathname === '/create-circle') {
+  // Hide navbar on lesson, guide, create-circle, and invest pages for immersive experience
+  if (
+    location.pathname.startsWith('/lesson/') || 
+    location.pathname.startsWith('/guide/') || 
+    location.pathname === '/create-circle' ||
+    location.pathname.startsWith('/invest/')
+  ) {
     return null;
   }
   
   const navItems = [
-    { path: '/', icon: 'home', label: 'Home' },
-    { path: '/circles', icon: 'donut_large', label: 'Circles' },
-    { path: '/learn', icon: 'school', label: 'Learn' },
-    { path: '/profile', icon: 'person', label: 'Profile' },
+    { path: '/', icon: 'home', label: 'Home', id: 'nav-home' },
+    { path: '/circles', icon: 'donut_large', label: 'Circles', id: 'nav-circles' },
+    { path: '/learn', icon: 'school', label: 'Learn', id: 'nav-learn' },
+    { path: '/profile', icon: 'person', label: 'Profile', id: 'nav-profile' },
   ];
 
   return (
@@ -26,6 +32,7 @@ export const Navbar: React.FC = () => {
               <Link 
                 key={item.path} 
                 to={item.path}
+                id={item.id}
                 className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 group ${isActive ? 'text-primary-content dark:text-primary' : 'text-text-secondary-light dark:text-text-secondary-dark hover:bg-black/5 dark:hover:bg-white/5'}`}
               >
                 <span className={`material-symbols-outlined text-[28px] ${isActive ? 'filled scale-110' : 'scale-100'} transition-transform duration-300`}>

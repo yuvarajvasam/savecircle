@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { X, Check, PiggyBank, Loader2, Gift, Heart, HeartCrack, Plus } from 'lucide-react';
@@ -81,11 +82,7 @@ export const Learn: React.FC = () => {
       const unitId = parseInt(id?.split('-')[0] || '0');
       if (unitId > 0 && unitId <= 10) {
           const staticData = getStaticLesson(id || '', topic);
-          // If static data is small, duplicate it to meet 5 questions req for demo feel
-          const expandedData = staticData.length < 5 
-            ? [...staticData, ...staticData].slice(0, 5) 
-            : staticData;
-          setQuestions(expandedData);
+          setQuestions(staticData);
           setLoading(false);
           return;
       }
@@ -207,12 +204,18 @@ export const Learn: React.FC = () => {
         return;
      }
 
+     // If answer was wrong, append current question to end of list so user must retry it later
+     if (status === 'wrong') {
+         const currentQ = questions[currentQuestionIndex];
+         setQuestions(prev => [...prev, currentQ]);
+     }
+
      if (currentQuestionIndex < questions.length - 1) {
          setCurrentQuestionIndex(prev => prev + 1);
          setSelectedOption(null);
          setStatus('idle');
      } else {
-         // All questions done
+         // All questions done (including retries)
          setIsQuizComplete(true);
          setStatus('idle');
      }
@@ -228,7 +231,7 @@ export const Learn: React.FC = () => {
           updateHearts(5);
           setIsGameOver(false);
           setStatus('idle');
-          // We do not reset the question index, effectively letting them retry the question
+          // We do not reset the question index, letting them retry from where they left off
       } else {
           alert("Not enough gems to refill hearts!");
       }
@@ -288,7 +291,10 @@ export const Learn: React.FC = () => {
   if (type === 'save' || type === 'reward') {
       progress = step === 1 ? 100 : 50;
   } else {
-      progress = isQuizComplete ? 100 : ((currentQuestionIndex + (status !== 'idle' ? 1 : 0)) / questions.length) * 100;
+      // Progress bar logic: 
+      // If errors occur, total questions length increases, so progress might appear to jump back slightly
+      // This is a known "feature" of dynamic queues (Duolingo style)
+      progress = isQuizComplete ? 100 : ((currentQuestionIndex) / questions.length) * 100;
   }
 
   return (
@@ -489,7 +495,7 @@ export const Learn: React.FC = () => {
                             size="lg"
                             onClick={handleContinue}
                         >
-                            {hearts === 0 ? 'See Result' : 'Continue'}
+                            {hearts === 0 ? 'See Result' : 'Got it'}
                         </Button>
                     </div>
                 </div>

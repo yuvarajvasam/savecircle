@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Copy, Check, Share2, Search, Gift, MessageCircle, Send } from 'lucide-react';
+import { getUser } from '../utils/storage';
 
 interface Contact {
   id: string;
@@ -13,10 +14,12 @@ interface Contact {
 
 export const InviteFriends: React.FC = () => {
   const navigate = useNavigate();
+  const user = getUser();
   const [copied, setCopied] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const inviteCode = "ALEX8821";
+  // Dynamic invite code based on user name
+  const inviteCode = (user.name.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase() || "USER") + "8821";
   const inviteLink = `savecircle.app/join/${inviteCode}`;
 
   const [contacts, setContacts] = useState<Contact[]>([
@@ -104,7 +107,7 @@ export const InviteFriends: React.FC = () => {
                 {filteredContacts.map(contact => (
                     <div key={contact.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <img src={contact.avatar} className="w-12 h-12 rounded-full bg-gray-200 object-cover" />
+                            <img src={contact.avatar} className="w-12 h-12 rounded-full bg-gray-200 object-cover" alt={contact.name} />
                             <div>
                                 <p className="font-bold text-text-primary-light dark:text-white">{contact.name}</p>
                                 <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{contact.handle}</p>

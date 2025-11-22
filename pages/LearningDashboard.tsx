@@ -5,10 +5,12 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, 
   BarChart, Bar, XAxis, Tooltip, Cell, PolarRadiusAxis
 } from 'recharts';
-import { Trophy, Flame, Target, BookOpen, Share2, Award } from 'lucide-react';
-import { INITIAL_USER } from '../constants';
+import { Trophy, Flame, Target, BookOpen, Share2, Award, Zap, Lock, ChevronRight, Star, TrendingUp } from 'lucide-react';
+import { getUser } from '../utils/storage';
+import { CircularProgress } from '../components/CircularProgress'; // We can reuse or inline a simpler version for the avatar
+import { ShareModal } from '../components/ShareModal';
 
-// Mock Data for Financial IQ (Static for now as we don't track skill-specific XP yet)
+// Mock Data for Financial IQ
 const SKILL_DATA = [
   { subject: 'Budgeting', A: 90, fullMark: 100 },
   { subject: 'Investing', A: 65, fullMark: 100 },
@@ -18,7 +20,7 @@ const SKILL_DATA = [
   { subject: 'Banking', A: 85, fullMark: 100 },
 ];
 
-// Mock Data for Weekly Activity (Could be persisted in a real app)
+// Mock Data for Weekly Activity
 const ACTIVITY_DATA = [
   { day: 'M', xp: 120 },
   { day: 'T', xp: 200 },
@@ -29,143 +31,196 @@ const ACTIVITY_DATA = [
   { day: 'S', xp: 40 },
 ];
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#1a1a1a] border border-white/10 p-2 rounded-lg shadow-xl z-50">
+          <p className="text-white font-bold text-xs font-display">
+            {payload[0].value} XP
+          </p>
+        </div>
+      );
+    }
+    return null;
+};
+
 export const LearningDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [xp, setXp] = useState(INITIAL_USER.xp);
-  const [completedLessons, setCompletedLessons] = useState(0);
+  const [user, setUser] = useState(getUser());
+  const [showShare, setShowShare] = useState(false);
   
   useEffect(() => {
-      const storedXp = localStorage.getItem('savecircle_xp');
-      if (storedXp) setXp(parseInt(storedXp));
-
-      const storedLessons = JSON.parse(localStorage.getItem('savecircle_completed_lessons') || '[]');
-      setCompletedLessons(storedLessons.length);
+      setUser(getUser());
   }, []);
 
-  const nextLevelXp = 3800;
-  const xpProgress = Math.min(100, (xp / nextLevelXp) * 100);
+  const completedLessons = JSON.parse(localStorage.getItem('savecircle_completed_lessons') || '[]').length;
+  const nextLevelXp = user.nextLevelXp || 3800; // Fallback if not in user obj
+  const xpProgress = Math.min(100, (user.xp / nextLevelXp) * 100);
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark flex-1 font-display flex flex-col h-full transition-colors duration-300">
-      {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 py-3 border-b border-border-light dark:border-white/5 transition-colors duration-300">
+      
+      <ShareModal 
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title="Share Progress"
+        text={`I'm Level ${user.level} on SaveCircle with ${user.xp} XP! 🎓 Join me and master your money.`}
+      />
+
+      {/* Navbar */}
+      <header className="sticky top-0 z-20 flex items-center justify-between bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-xl px-4 py-3 border-b border-border-light dark:border-white/5 transition-colors duration-300">
         <div className="flex w-12 items-center justify-start">
           <button onClick={() => navigate(-1)} className="h-10 w-10 flex items-center justify-center text-text-primary-light dark:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
         </div>
-        <h1 className="text-lg font-bold">Learning Stats</h1>
+        <h1 className="text-lg font-bold">Progress</h1>
         <div className="flex w-12 items-center justify-end">
-           <button className="h-10 w-10 flex items-center justify-center text-text-primary-light dark:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
+           <button 
+             onClick={() => setShowShare(true)}
+             className="h-10 w-10 flex items-center justify-center text-text-primary-light dark:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
+           >
             <Share2 size={20} strokeWidth={2} />
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-8 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         
-        {/* Hero Level Card */}
-        <section className="bg-card-light dark:bg-card-dark p-6 rounded-[2rem] border border-border-light dark:border-white/5 shadow-sm dark:shadow-none relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-[40px] -mr-8 -mt-8 pointer-events-none"></div>
-            
-            <div className="flex items-center gap-4 mb-6 relative z-10">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-emerald-500 p-[3px] shadow-lg shadow-primary/20">
-                    <div className="w-full h-full rounded-full bg-card-light dark:bg-card-dark flex items-center justify-center">
-                        <span className="text-3xl">🎓</span>
-                    </div>
+        {/* HERO: Rank & Level */}
+        <section className="flex flex-col items-center pt-2">
+            <div className="relative mb-4">
+                {/* Custom SVG Ring for XP */}
+                <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="46" fill="none" className="stroke-gray-200 dark:stroke-white/10" strokeWidth="6" />
+                    <circle 
+                        cx="50" cy="50" r="46" 
+                        fill="none" 
+                        stroke="#c9f158" 
+                        strokeWidth="6" 
+                        strokeDasharray="289"
+                        strokeDashoffset={289 - (289 * (xpProgress / 100))}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out drop-shadow-[0_0_10px_rgba(201,241,88,0.5)]"
+                    />
+                </svg>
+                
+                {/* Avatar */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full overflow-hidden border-4 border-background-light dark:border-background-dark">
+                    <img src={user.avatar} className="w-full h-full object-cover" alt="Profile" />
                 </div>
-                <div className="flex-1">
-                    <p className="text-xs font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mb-1">Current Rank</p>
-                    <h2 className="text-2xl font-bold text-text-primary-light dark:text-white leading-none mb-2">Scholar Lvl 3</h2>
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{width: `${xpProgress}%`}}></div>
-                        </div>
-                        <span className="text-xs font-bold text-primary-dark dark:text-primary">{xp} / {nextLevelXp} XP</span>
-                    </div>
+
+                {/* Level Badge */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold border-2 border-background-light dark:border-background-dark shadow-lg flex items-center gap-1">
+                    <Star size={12} className="fill-current" />
+                    Level {user.level}
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 relative z-10">
-                <div className="bg-background-light dark:bg-background-dark p-3 rounded-xl flex flex-col items-center text-center border border-border-light dark:border-white/5">
-                    <Flame size={20} className="text-orange-500 mb-1 fill-orange-500" />
-                    <span className="font-bold text-lg">12</span>
-                    <span className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark uppercase font-bold">Day Streak</span>
-                </div>
-                <div className="bg-background-light dark:bg-background-dark p-3 rounded-xl flex flex-col items-center text-center border border-border-light dark:border-white/5">
-                    <BookOpen size={20} className="text-blue-500 mb-1" />
-                    <span className="font-bold text-lg">{completedLessons}</span>
-                    <span className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark uppercase font-bold">Lessons</span>
-                </div>
-                <div className="bg-background-light dark:bg-background-dark p-3 rounded-xl flex flex-col items-center text-center border border-border-light dark:border-white/5">
-                    <Target size={20} className="text-purple-500 mb-1" />
-                    <span className="font-bold text-lg">92%</span>
-                    <span className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark uppercase font-bold">Accuracy</span>
-                </div>
+            <h2 className="text-2xl font-bold text-text-primary-light dark:text-white mb-1">{user.name}</h2>
+            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+                <Trophy size={14} className="text-yellow-500" />
+                <span>Diamond League</span>
+                <span className="w-1 h-1 bg-current rounded-full opacity-50"></span>
+                <span>Top 5%</span>
             </div>
         </section>
 
-        {/* Financial IQ Radar Chart */}
-        <section className="bg-card-light dark:bg-card-dark p-6 rounded-[2rem] border border-border-light dark:border-white/5 shadow-sm dark:shadow-none">
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg text-text-primary-light dark:text-white">Financial IQ</h3>
-                <span className="text-xs font-bold bg-primary/10 text-primary-dark dark:text-primary px-2 py-1 rounded-lg">Balanced</span>
-            </div>
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-6">Your mastery across different financial topics.</p>
+        {/* STATS GRID */}
+        <section className="grid grid-cols-2 gap-3">
+             <div className="bg-card-light dark:bg-card-dark p-4 rounded-[1.5rem] border border-border-light dark:border-white/5 flex flex-col justify-between shadow-sm dark:shadow-none hover:border-orange-500/30 transition-colors group">
+                 <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 mb-3 group-hover:scale-110 transition-transform">
+                     <Flame size={20} className="fill-current" />
+                 </div>
+                 <div>
+                     <p className="text-2xl font-bold text-text-primary-light dark:text-white leading-none">{user.streak}</p>
+                     <p className="text-xs font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mt-1">Day Streak</p>
+                 </div>
+             </div>
+
+             <div className="bg-card-light dark:bg-card-dark p-4 rounded-[1.5rem] border border-border-light dark:border-white/5 flex flex-col justify-between shadow-sm dark:shadow-none hover:border-blue-500/30 transition-colors group">
+                 <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mb-3 group-hover:scale-110 transition-transform">
+                     <BookOpen size={20} />
+                 </div>
+                 <div>
+                     <p className="text-2xl font-bold text-text-primary-light dark:text-white leading-none">{completedLessons}</p>
+                     <p className="text-xs font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mt-1">Lessons Done</p>
+                 </div>
+             </div>
+             
+             <div className="col-span-2 bg-card-light dark:bg-card-dark p-4 rounded-[1.5rem] border border-border-light dark:border-white/5 flex items-center justify-between shadow-sm dark:shadow-none">
+                 <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500">
+                         <Target size={20} />
+                     </div>
+                     <div>
+                         <p className="font-bold text-text-primary-light dark:text-white text-base">Quiz Accuracy</p>
+                         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark font-medium">Top 10% of learners</p>
+                     </div>
+                 </div>
+                 <span className="text-xl font-bold text-text-primary-light dark:text-white">92%</span>
+             </div>
+        </section>
+
+        {/* SKILL RADAR */}
+        <section className="relative overflow-hidden bg-[#151515] text-white p-6 rounded-[2rem] shadow-xl border border-white/5">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none"></div>
             
-            <div className="h-[250px] w-full -ml-2">
+            <div className="flex items-center justify-between mb-4 relative z-10">
+                <div>
+                    <h3 className="font-bold text-lg">Financial IQ</h3>
+                    <p className="text-xs text-white/50">Your knowledge map</p>
+                </div>
+                <div className="bg-white/10 px-2 py-1 rounded-lg border border-white/5 backdrop-blur-md">
+                    <span className="text-xs font-bold text-primary">Balanced</span>
+                </div>
+            </div>
+
+            <div className="h-[220px] w-full -ml-4 relative z-10">
                 <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={SKILL_DATA}>
-                        <PolarGrid strokeOpacity={0.2} />
+                        <PolarGrid stroke="rgba(255,255,255,0.1)" />
                         <PolarAngleAxis 
                             dataKey="subject" 
-                            tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 'bold', opacity: 0.7 }} 
-                            className="text-text-secondary-light dark:text-white"
+                            tick={{ fill: '#888', fontSize: 10, fontWeight: 'bold' }} 
                         />
                         <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                         <Radar
-                            name="Mike"
+                            name="Skill"
                             dataKey="A"
                             stroke="#c9f158"
                             strokeWidth={3}
                             fill="#c9f158"
-                            fillOpacity={0.4}
+                            fillOpacity={0.3}
                         />
-                        <Tooltip 
-                            contentStyle={{borderRadius: '12px', border: 'none', backgroundColor: '#202020', color: '#fff', fontSize: '12px'}}
-                            itemStyle={{color: '#c9f158'}}
-                        />
+                        <Tooltip cursor={false} content={<CustomTooltip />} />
                     </RadarChart>
                 </ResponsiveContainer>
             </div>
         </section>
 
-        {/* Weekly Activity */}
+        {/* WEEKLY ACTIVITY */}
         <section className="bg-card-light dark:bg-card-dark p-6 rounded-[2rem] border border-border-light dark:border-white/5 shadow-sm dark:shadow-none">
              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-lg text-text-primary-light dark:text-white">Weekly Activity</h3>
-                <div className="flex items-center gap-1 text-xs font-bold text-text-secondary-light dark:text-text-secondary-dark">
-                    <span className="w-2 h-2 rounded-full bg-primary"></span>
-                    XP Earned
+                <h3 className="font-bold text-lg text-text-primary-light dark:text-white">Consistency</h3>
+                <div className="flex items-center gap-2 text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded-lg">
+                    <TrendingUp size={14} />
+                    +12% vs last week
                 </div>
             </div>
             
-            <div className="h-48 w-full">
+            <div className="h-40 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={ACTIVITY_DATA} barSize={12}>
                         <XAxis 
                             dataKey="day" 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.5}}
+                            tick={{fill: '#888', fontSize: 11, fontWeight: 'bold'}}
                             dy={10}
-                            className="text-text-secondary-light dark:text-white"
                         />
-                        <Tooltip 
-                            cursor={{fill: 'transparent'}}
-                            contentStyle={{borderRadius: '12px', border: 'none', backgroundColor: '#202020', color: '#fff', fontSize: '12px'}}
-                        />
-                        <Bar dataKey="xp" radius={[4, 4, 4, 4]}>
+                        <Tooltip cursor={{fill: 'transparent'}} content={<CustomTooltip />} />
+                        <Bar dataKey="xp" radius={[6, 6, 6, 6]}>
                             {ACTIVITY_DATA.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.xp > 150 ? '#c9f158' : '#3f3f46'} />
                             ))}
@@ -175,34 +230,34 @@ export const LearningDashboard: React.FC = () => {
             </div>
         </section>
 
-        {/* Recent Badges */}
-        <section>
-            <div className="flex items-center justify-between mb-4 px-2">
-                <h3 className="font-bold text-lg text-text-primary-light dark:text-white">Recent Badges</h3>
-                <button className="text-primary-dark dark:text-primary text-xs font-bold uppercase tracking-wide hover:opacity-80">View All</button>
-            </div>
+        {/* NEXT MILESTONE */}
+        <section className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-[40px] -mr-8 -mt-8 transition-opacity duration-500 opacity-50 group-hover:opacity-80"></div>
             
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 px-2">
-                <div className="min-w-[140px] bg-card-light dark:bg-card-dark p-4 rounded-2xl border border-border-light dark:border-white/5 flex flex-col items-center text-center shadow-sm dark:shadow-none">
-                    <div className="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center mb-3 text-2xl border-2 border-yellow-500/20">
-                        ⚡
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-1">Next Milestone</p>
+                        <h3 className="font-bold text-xl">Reach Level 4</h3>
                     </div>
-                    <p className="font-bold text-sm mb-1">Fast Learner</p>
-                    <p className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark">Complete 5 lessons in 1 day</p>
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/10">
+                        <Lock size={18} className="text-white" />
+                    </div>
                 </div>
-                 <div className="min-w-[140px] bg-card-light dark:bg-card-dark p-4 rounded-2xl border border-border-light dark:border-white/5 flex flex-col items-center text-center shadow-sm dark:shadow-none">
-                    <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mb-3 text-2xl border-2 border-blue-500/20">
-                        🧠
-                    </div>
-                    <p className="font-bold text-sm mb-1">Quiz Master</p>
-                    <p className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark">100% score on 3 quizzes</p>
+
+                <div className="flex items-center justify-between text-sm font-medium mb-2">
+                    <span className="text-white/80">{user.xp} XP</span>
+                    <span className="text-white font-bold">{nextLevelXp} XP</span>
                 </div>
-                 <div className="min-w-[140px] bg-card-light dark:bg-card-dark p-4 rounded-2xl border border-border-light dark:border-white/5 flex flex-col items-center text-center opacity-50">
-                    <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-white/5 flex items-center justify-center mb-3 text-2xl grayscale">
-                        🛡️
-                    </div>
-                    <p className="font-bold text-sm mb-1">Risk Manager</p>
-                    <p className="text-[10px] text-text-secondary-light dark:text-text-secondary-dark">Locked</p>
+                
+                <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden mb-4">
+                    <div className="h-full bg-white rounded-full transition-all duration-1000" style={{width: `${xpProgress}%`}}></div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-medium text-indigo-100 bg-black/10 px-3 py-2 rounded-xl w-fit">
+                    <Award size={14} className="text-yellow-300" />
+                    <span>Reward: </span>
+                    <span className="font-bold text-white">50 Gems</span>
                 </div>
             </div>
         </section>

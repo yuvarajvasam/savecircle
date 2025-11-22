@@ -2,14 +2,15 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { MOCK_CIRCLES } from '../constants';
+import { getCircles } from '../utils/storage';
 import { Circle } from '../types';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, AlertCircle } from 'lucide-react';
+import { CircleIcon } from '../components/CircleIcon';
 
 export const JoinCircle: React.FC = () => {
   const navigate = useNavigate();
   const [code, setCode] = useState('');
-  const [status, setStatus] = useState<'idle' | 'searching' | 'found' | 'joining' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'searching' | 'found' | 'joining' | 'success' | 'error' | 'already_member'>('idle');
   const [foundCircle, setFoundCircle] = useState<Circle | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -27,10 +28,18 @@ export const JoinCircle: React.FC = () => {
 
     setStatus('searching');
     setTimeout(() => {
-      const circle = MOCK_CIRCLES.find(c => c.inviteCode === code);
+      // Search in all circles (both mock and created ones stored in LS)
+      const circles = getCircles();
+      const circle = circles.find(c => c.inviteCode === code);
+      
       if (circle) {
         setFoundCircle(circle);
-        setStatus('found');
+        // Check if already joined
+        if (circle.isUserMember) {
+            setStatus('already_member');
+        } else {
+            setStatus('found');
+        }
       } else {
         setStatus('error');
         setErrorMsg('Invalid invite code. Please try again.');
@@ -45,7 +54,7 @@ export const JoinCircle: React.FC = () => {
     setTimeout(() => {
        // Simulate Join Logic
        setStatus('success');
-       // Persist join state locally for the demo so it shows up in the list
+       // Persist join state locally
        localStorage.setItem(`joined_${foundCircle.id}`, 'true');
        
        setTimeout(() => {
@@ -117,8 +126,8 @@ export const JoinCircle: React.FC = () => {
                 </div>
              )}
 
-             {/* FOUND STATE UI */}
-             {(status === 'found' || status === 'joining' || status === 'success') && foundCircle && (
+             {/* FOUND / ALREADY MEMBER STATE UI */}
+             {(status === 'found' || status === 'joining' || status === 'success' || status === 'already_member') && foundCircle && (
                 <div className="w-full animate-slide-up">
                     <div className={`w-full ${getThemeGradient(foundCircle.theme)} p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-left text-white mb-8`}>
                         {/* Decorative Blur */}
@@ -126,7 +135,7 @@ export const JoinCircle: React.FC = () => {
                         
                         <div className="relative z-10 flex flex-col items-center text-center">
                             <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md text-white shadow-inner border border-white/10 text-4xl font-bold mb-4">
-                                {foundCircle.name.substring(0, 1)}
+                                <CircleIcon icon={foundCircle.icon} type={foundCircle.iconType} color={foundCircle.iconColor} className="w-10 h-10" fallback={foundCircle.name[0]} />
                             </div>
                             <h2 className="text-3xl font-bold mb-2">{foundCircle.name}</h2>
                             <p className="text-white/80 font-medium mb-6">
@@ -153,6 +162,24 @@ export const JoinCircle: React.FC = () => {
                             </Button>
                             <Button fullWidth variant="text" onClick={() => setStatus('idle')}>
                                 Cancel
+                            </Button>
+                        </div>
+                    )}
+
+                    {status === 'already_member' && (
+                        <div className="flex flex-col gap-3 text-center">
+                            <div className="p-4 bg-yellow-500/10 rounded-2xl border border-yellow-500/20 mb-2">
+                                <div className="flex items-center justify-center gap-2 text-yellow-600 dark:text-yellow-500 font-bold mb-1">
+                                    <AlertCircle size={20} />
+                                    <span>Already a Member</span>
+                                </div>
+                                <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">You are already part of this circle.</p>
+                            </div>
+                            <Button fullWidth onClick={() => navigate(`/circles/${foundCircle.id}`)}>
+                                Go to Circle
+                            </Button>
+                            <Button fullWidth variant="text" onClick={() => setStatus('idle')}>
+                                Search Another
                             </Button>
                         </div>
                     )}
